@@ -10,16 +10,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/okeleyeayomide08/ROBIA.git"
+    "url": "git+https://github.com/okeleyeayomide08/ROVIA.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "bugs": {
-    "url": "https://github.com/okeleyeayomide08/ROBIA/issues"
+    "url": "https://github.com/okeleyeayomide08/ROVIA/issues"
   },
-  "homepage": "https://github.com/okeleyeayomide08/ROBIA#readme",
+  "homepage": "https://github.com/okeleyeayomide08/ROVIA#readme",
   "dependencies": {
     "argon2": "^0.45.1",
     "cookie-parser": "^1.4.7",
