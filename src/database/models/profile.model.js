@@ -44,7 +44,7 @@ const Profile = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true,
     },
-    ccompletionStatus: {
+    completionStatus: {
       type: DataTypes.ENUM("INCOMPLETE", "COMPLETE"),
       defaultValue: "INCOMPLETE",
       allowNull: false,
