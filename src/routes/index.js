@@ -8,7 +8,7 @@ router.use("/auth", authRoutes);
 router.get("/", (req, res) => {
   res.json({
     success: true,
-    message: "Robia API v1",
+    message: "Rovia API v1",
   });
 });
 
