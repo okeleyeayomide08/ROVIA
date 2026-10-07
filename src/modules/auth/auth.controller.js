@@ -66,3 +66,26 @@ export async function logout(req, res) {
     message: "Logged out successfully",
   });
 }
+
+export async function forgotPassword(req, res) {
+  await authService.forgotPassword(req.body.email);
+
+  // Always return the exact same success message regardless of whether email exists
+  return res.status(200).json({
+    success: true,
+    data: null,
+    message:
+      "If an account exists with this email, a password reset link has been sent.",
+  });
+}
+
+export async function resetPassword(req, res) {
+  await authService.resetPassword(req.body);
+
+  return res.status(200).json({
+    success: true,
+    data: null,
+    message:
+      "Password has been reset successfully. Please log in with your new password.",
+  });
+}

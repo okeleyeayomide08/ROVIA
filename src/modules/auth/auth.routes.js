@@ -5,6 +5,8 @@ import {
   registerValidator,
   loginValidator,
   refreshValidator,
+  forgotPasswordValidator,
+  resetPasswordValidator,
 } from "./auth.validator.js";
 import validate from "../../middleware/validate.js";
 import asyncHandler from "../../utils/asyncHandler.js";
@@ -50,5 +52,21 @@ router.post(
 );
 
 router.post("/logout", asyncHandler(authController.logout));
+
+router.post(
+  "/forgot-password",
+  authLimiter,
+  forgotPasswordValidator,
+  validate,
+  asyncHandler(authController.forgotPassword),
+);
+
+router.post(
+  "/reset-password",
+  authLimiter,
+  resetPasswordValidator,
+  validate,
+  asyncHandler(authController.resetPassword),
+);
 
 export default router;

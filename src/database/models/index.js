@@ -2,12 +2,13 @@ import sequelize from "../../config/sequelize.js";
 import User from "./user.model.js";
 import Profile from "./profile.model.js";
 import RefreshToken from "./refreshToken.model.js";
+import PasswordResetToken from "./passwordResetToken.model.js";
 import Education from "./education.model.js";
 import Skill from "./skill.model.js";
 import UserSkill from "./userSkill.model.js";
 
 // ==========================================
-// 1. User & Profile (1:1)
+// User & Profile (1:1)
 // ==========================================
 User.hasOne(Profile, {
   foreignKey: "userId",
@@ -20,7 +21,7 @@ Profile.belongsTo(User, {
 });
 
 // ==========================================
-// 2. User & RefreshTokens (1:N)
+// User & RefreshTokens (1:N)
 // ==========================================
 User.hasMany(RefreshToken, {
   foreignKey: "userId",
@@ -33,7 +34,20 @@ RefreshToken.belongsTo(User, {
 });
 
 // ==========================================
-// 3. User & Education (1:N)
+// User & PasswordResetTokens (1:N)
+// ==========================================
+User.hasMany(PasswordResetToken, {
+  foreignKey: "userId",
+  as: "passwordResetTokens",
+  onDelete: "CASCADE",
+});
+PasswordResetToken.belongsTo(User, {
+  foreignKey: "userId",
+  as: "user",
+});
+
+// ==========================================
+// User & Education (1:N)
 // ==========================================
 User.hasMany(Education, {
   foreignKey: "userId",
@@ -46,7 +60,7 @@ Education.belongsTo(User, {
 });
 
 // ==========================================
-// 4. User & Skills (N:M through UserSkill)
+// User & Skills (N:M through UserSkill)
 // ==========================================
 User.belongsToMany(Skill, {
   through: UserSkill,
@@ -61,7 +75,6 @@ Skill.belongsToMany(User, {
   as: "users",
 });
 
-// Direct associations for the join table (so we can query UserSkill directly)
 UserSkill.belongsTo(User, { foreignKey: "userId", as: "user" });
 UserSkill.belongsTo(Skill, { foreignKey: "skillId", as: "skill" });
 User.hasMany(UserSkill, { foreignKey: "userId", as: "userSkills" });
@@ -70,13 +83,23 @@ Skill.hasMany(UserSkill, { foreignKey: "skillId", as: "userSkills" });
 // ==========================================
 // Exports
 // ==========================================
-export { sequelize, User, Profile, RefreshToken, Education, Skill, UserSkill };
+export {
+  sequelize,
+  User,
+  Profile,
+  RefreshToken,
+  PasswordResetToken,
+  Education,
+  Skill,
+  UserSkill,
+};
 
 export default {
   sequelize,
   User,
   Profile,
   RefreshToken,
+  PasswordResetToken,
   Education,
   Skill,
   UserSkill,

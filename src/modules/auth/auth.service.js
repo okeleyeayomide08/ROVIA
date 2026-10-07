@@ -4,6 +4,7 @@ import {
   User,
   Profile,
   RefreshToken,
+  PasswordResetToken,
 } from "../../database/models/index.js";
 import { hashPassword, verifyPassword } from "../../utils/password.js";
 import {
@@ -11,7 +12,10 @@ import {
   generateRefreshToken,
   hashToken,
 } from "../../utils/tokens.js";
+import { sendPasswordResetEmail } from "../../utils/email.js";
 import ApiError from "../../utils/ApiError.js";
+import env from "../../config/env.js";
+import crypto from "node:crypto";
 
 export async function register({ email, password }) {
   const existingUser = await User.findOne({ where: { email } });
@@ -163,4 +167,107 @@ export async function logout(rawRefreshToken) {
       },
     },
   );
+}
+
+/**
+ * Request a password reset link
+ */
+export async function forgotPassword(email) {
+  const user = await User.findOne({ where: { email } });
+
+  if (!user) {
+    return;
+  }
+
+  // Generate a random reset token
+  const rawResetToken = crypto.randomBytes(32).toString("hex");
+  const tokenHash = hashToken(rawResetToken);
+
+  // Token expires in 1 hour
+  const expiresAt = new Date();
+  expiresAt.setHours(expiresAt.getHours() + 1);
+
+  // Invalidate any previously active reset tokens for this user
+  await PasswordResetToken.update(
+    { usedAt: new Date() },
+    {
+      where: {
+        userId: user.id,
+        usedAt: null,
+      },
+    },
+  );
+
+  // Save new hashed reset token
+  await PasswordResetToken.create({
+    userId: user.id,
+    tokenHash,
+    expiresAt,
+  });
+
+  // Construct reset URL for the frontend
+  const resetUrl = `${env.frontendUrl}/reset-password?token=${rawResetToken}`;
+
+  // Send the email (or log to terminal if SMTP not yet configured)
+  await sendPasswordResetEmail({
+    to: user.email,
+    resetUrl,
+  });
+}
+
+/**
+ * Reset password using a valid reset token
+ */
+export async function resetPassword({ token, password }) {
+  const tokenHash = hashToken(token);
+
+  // Find valid, unexpired, unused token
+  const resetTokenRecord = await PasswordResetToken.findOne({
+    where: {
+      tokenHash,
+      usedAt: null,
+      expiresAt: {
+        [Op.gt]: new Date(),
+      },
+    },
+    include: [{ model: User, as: "user" }],
+  });
+
+  if (!resetTokenRecord || !resetTokenRecord.user) {
+    throw new ApiError(
+      400,
+      "INVALID_TOKEN",
+      "Password reset token is invalid or has expired",
+    );
+  }
+
+  const user = resetTokenRecord.user;
+
+  // Hash the new password with Argon2
+  const passwordHash = await hashPassword(password);
+
+  // Use a transaction: update password, mark token used, revoke all refresh tokens (logout everywhere)
+  await sequelize.transaction(async (t) => {
+    // 1. Update user password
+    await User.update(
+      { passwordHash },
+      { where: { id: user.id }, transaction: t },
+    );
+
+    // 2. Mark this reset token as used
+    await resetTokenRecord.update({ usedAt: new Date() }, { transaction: t });
+
+    // 3. Security: Revoke all existing sessions/refresh tokens
+    // Forces the user to log in with the new password on all devices
+    await RefreshToken.update(
+      { revokedAt: new Date() },
+      {
+        where: {
+          userId: user.id,
+          revokedAt: null,
+        },
+        transaction: t,
+      },
+    );
+  });
 }
