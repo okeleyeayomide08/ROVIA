@@ -3,10 +3,99 @@ import {
   User,
   Education,
   Skill,
+  Experience,
+  Certification,
+  CareerGoal,
+  Interest,
 } from "../../database/models/index.js";
 import ApiError from "../../utils/ApiError.js";
 
+/**
+ * Calculates profile completion percentage and returns missing checklist items
+ */
+function calculateProfileCompletion(data) {
+  let score = 0;
+  const missingSteps = [];
+
+  const {
+    profile,
+    education,
+    skills,
+    experiences,
+    certifications,
+    careerGoals,
+    interests,
+  } = data;
+
+  // 1. Basic profile info (25%)
+  const hasBasicInfo = Boolean(
+    profile.headline?.trim() &&
+    profile.location?.trim() &&
+    profile.country?.trim() &&
+    profile.biography?.trim(),
+  );
+  if (hasBasicInfo) {
+    score += 25;
+  } else {
+    missingSteps.push(
+      "Complete basic profile information (headline, location, country, biography)",
+    );
+  }
+
+  // 2. Education (15%)
+  if (education && education.length > 0) {
+    score += 15;
+  } else {
+    missingSteps.push("Add at least one education record");
+  }
+
+  // 3. Experience (15%)
+  if (experiences && experiences.length > 0) {
+    score += 15;
+  } else {
+    missingSteps.push("Add at least one work or project experience");
+  }
+
+  // 4. Skills (15%)
+  if (skills && skills.length >= 3) {
+    score += 15;
+  } else {
+    missingSteps.push("Add at least 3 skills to your profile");
+  }
+
+  // 5. Certifications (10%)
+  if (certifications && certifications.length > 0) {
+    score += 10;
+  } else {
+    missingSteps.push("Add certifications or licenses");
+  }
+
+  // 6. Career Goals (10%)
+  if (careerGoals && careerGoals.length > 0) {
+    score += 10;
+  } else {
+    missingSteps.push("Set your target career goals");
+  }
+
+  // 7. Interests (10%)
+  if (interests && interests.length >= 2) {
+    score += 10;
+  } else {
+    missingSteps.push("Select at least 2 career interests");
+  }
+
+  return {
+    percentage: score,
+    status: score >= 80 ? "COMPLETE" : "INCOMPLETE",
+    missingSteps,
+  };
+}
+
+/**
+ * Fetch complete aggregated career profile for a user
+ */
 export async function getProfileByUserId(userId) {
+  // Fetch user and profile
   const profile = await Profile.findOne({
     where: { userId },
     include: [
@@ -28,30 +117,82 @@ export async function getProfileByUserId(userId) {
     throw new ApiError(404, "NOT_FOUND", "Profile not found");
   }
 
-  const education = await Education.findAll({
-    where: { userId },
-    order: [["startDate", "DESC"]],
+  // Execute queries in parallel for high performance
+  const [
+    education,
+    experiences,
+    certifications,
+    careerGoals,
+    userWithSkills,
+    userWithInterests,
+  ] = await Promise.all([
+    Education.findAll({
+      where: { userId },
+      order: [["startDate", "DESC NULLS LAST"]],
+    }),
+    Experience.findAll({
+      where: { userId },
+      order: [["startDate", "DESC NULLS LAST"]],
+    }),
+    Certification.findAll({
+      where: { userId },
+      order: [["issueDate", "DESC NULLS LAST"]],
+    }),
+    CareerGoal.findAll({ where: { userId }, order: [["createdAt", "DESC"]] }),
+    User.findByPk(userId, {
+      include: [
+        {
+          model: Skill,
+          as: "skills",
+          through: { attributes: ["proficiency", "evidence"] },
+        },
+      ],
+    }),
+    User.findByPk(userId, {
+      include: [
+        {
+          model: Interest,
+          as: "interests",
+          through: { attributes: [] },
+        },
+      ],
+    }),
+  ]);
+
+  const skills = userWithSkills?.skills || [];
+  const interests = userWithInterests?.interests || [];
+
+  const completion = calculateProfileCompletion({
+    profile,
+    education,
+    skills,
+    experiences,
+    certifications,
+    careerGoals,
+    interests,
   });
 
-  const userWithSkills = await User.findByPk(userId, {
-    include: [
-      {
-        model: Skill,
-        as: "skills",
-        through: {
-          attributes: ["proficiency", "evidence"],
-        },
-      },
-    ],
-  });
+  // Sync completionStatus column on the profile table
+  if (profile.completionStatus !== completion.status) {
+    profile.completionStatus = completion.status;
+    await profile.save();
+  }
 
   return {
     profile,
-    education: education || [],
-    skills: userWithSkills?.skills || [],
+    education,
+    skills,
+    experiences,
+    certifications,
+    careerGoals,
+    interests,
+    completion,
   };
 }
 
+/**
+ * Update core profile fields
+ */
 export async function updateProfile(userId, updateData) {
   const profile = await Profile.findOne({ where: { userId } });
 
@@ -72,19 +213,8 @@ export async function updateProfile(userId, updateData) {
     }
   }
 
-  // Check that all 5 fields have actual non-empty content
-  const hasHeadline = Boolean(profile.headline?.trim());
-  const hasLocation = Boolean(profile.location?.trim());
-  const hasCountry = Boolean(profile.country?.trim());
-  const hasCareerLevel = Boolean(profile.careerLevel);
-  const hasBiography = Boolean(profile.biography?.trim());
-
-  const isComplete =
-    hasHeadline && hasLocation && hasCountry && hasCareerLevel && hasBiography;
-
-  profile.completionStatus = isComplete ? "COMPLETE" : "INCOMPLETE";
-
   await profile.save();
 
-  return profile;
+  // Return the refreshed aggregate profile
+  return getProfileByUserId(userId);
 }
