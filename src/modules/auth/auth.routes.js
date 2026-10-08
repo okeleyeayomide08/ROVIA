@@ -28,6 +28,40 @@ const authLimiter = rateLimit({
   },
 });
 
+/**
+ * @swagger
+ * /auth/register:
+ *   post:
+ *     summary: Register a new user account
+ *     description: Creates a new user and an associated empty profile. Returns JWT access and refresh tokens.
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: ayomide@rovia.app
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: Password123!
+ *     responses:
+ *       201:
+ *         description: User registered successfully
+ *       409:
+ *         description: Email already exists
+ *       400:
+ *         description: Validation error
+ */
 router.post(
   "/register",
   authLimiter,
@@ -36,6 +70,38 @@ router.post(
   asyncHandler(authController.register),
 );
 
+/**
+ * @swagger
+ * /auth/login:
+ *   post:
+ *     summary: Authenticate user and receive tokens
+ *     description: Validates credentials and returns JWT access token, refresh token, and user data.
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - password
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: ayomide@rovia.app
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: Password123!
+ *     responses:
+ *       200:
+ *         description: Login successful
+ *       401:
+ *         description: Invalid credentials
+ */
 router.post(
   "/login",
   authLimiter,
@@ -44,6 +110,29 @@ router.post(
   asyncHandler(authController.login),
 );
 
+/**
+ * @swagger
+ * /auth/refresh:
+ *   post:
+ *     summary: Refresh expired access token
+ *     description: Exchanges a valid refresh token for a new access token.
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               refreshToken:
+ *                 type: string
+ *                 example: 9a55a0afe4019d120d618776e291...
+ *     responses:
+ *       200:
+ *         description: Access token refreshed
+ *       401:
+ *         description: Invalid or expired refresh token
+ */
 router.post(
   "/refresh",
   refreshValidator,
@@ -51,8 +140,44 @@ router.post(
   asyncHandler(authController.refresh),
 );
 
+/**
+ * @swagger
+ * /auth/logout:
+ *   post:
+ *     summary: Revoke refresh token and log out
+ *     description: Invalidates the current refresh token session.
+ *     tags: [Authentication]
+ *     responses:
+ *       200:
+ *         description: Logged out successfully
+ */
 router.post("/logout", asyncHandler(authController.logout));
 
+/**
+ * @swagger
+ * /auth/forgot-password:
+ *   post:
+ *     summary: Request password reset link
+ *     description: Sends a password reset email if the account exists. Always returns 200 to prevent user enumeration.
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 example: ayomide@rovia.app
+ *     responses:
+ *       200:
+ *         description: Reset link sent if account exists
+ */
 router.post(
   "/forgot-password",
   authLimiter,
@@ -61,6 +186,37 @@ router.post(
   asyncHandler(authController.forgotPassword),
 );
 
+/**
+ * @swagger
+ * /auth/reset-password:
+ *   post:
+ *     summary: Reset password using token
+ *     description: Validates the reset token and updates the user password. Revokes all active sessions.
+ *     tags: [Authentication]
+ *     security: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - password
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 example: a1b2c3d4e5f6...
+ *               password:
+ *                 type: string
+ *                 format: password
+ *                 example: NewSecurePass123!
+ *     responses:
+ *       200:
+ *         description: Password reset successfully
+ *       400:
+ *         description: Invalid or expired token
+ */
 router.post(
   "/reset-password",
   authLimiter,

@@ -1,3 +1,4 @@
+import { setupSwagger } from "./docs/swagger.js";
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
@@ -51,6 +52,11 @@ app.use(
     },
   }),
 );
+
+// Swagger API Documentation (only in development and staging)
+if (env.nodeEnv !== "production") {
+  setupSwagger(app);
+}
 
 // 6. API routes
 app.use("/api/v1", routes);
