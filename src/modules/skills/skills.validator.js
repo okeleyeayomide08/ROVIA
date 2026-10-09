@@ -1,21 +1,48 @@
-import { body, param } from 'express-validator';
+import { body, param } from "express-validator";
 
-export const createSkillValidator = [
-  body('name').notEmpty().trim().withMessage('Skill name is required'),
-  body('proficiencyLevel')
+const PROFICIENCY_LEVELS = ["BEGINNER", "INTERMEDIATE", "ADVANCED", "EXPERT"];
+
+export const addSkillValidator = [
+  body("name")
+    .trim()
+    .notEmpty()
+    .withMessage("Skill name is required")
+    .isLength({ max: 100 })
+    .withMessage("Skill name cannot exceed 100 characters"),
+
+  body("category")
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 100 })
+    .withMessage("Category cannot exceed 100 characters"),
+
+  body("proficiency")
     .optional()
-    .isIn(['Beginner', 'Intermediate', 'Advanced', 'Expert'])
-    .withMessage('Invalid proficiency level')
+    .isIn(PROFICIENCY_LEVELS)
+    .withMessage(
+      `Proficiency must be one of: ${PROFICIENCY_LEVELS.join(", ")}`,
+    ),
+
+  body("evidence")
+    .optional({ nullable: true })
+    .trim()
+    .isLength({ max: 2000 })
+    .withMessage("Evidence cannot exceed 2000 characters"),
 ];
 
 export const updateSkillValidator = [
-  param('id').isMongoId().withMessage('Invalid ID format'),
-  body('name').optional().notEmpty().trim(),
-  body('proficiencyLevel')
+  param("skillId").isUUID().withMessage("Invalid skill ID format"),
+
+  body("proficiency")
     .optional()
-    .isIn(['Beginner', 'Intermediate', 'Advanced', 'Expert'])
+    .isIn(PROFICIENCY_LEVELS)
+    .withMessage(
+      `Proficiency must be one of: ${PROFICIENCY_LEVELS.join(", ")}`,
+    ),
+
+  body("evidence").optional({ nullable: true }).trim().isLength({ max: 2000 }),
 ];
 
-export const idParamValidator = [
-  param('id').isMongoId().withMessage('Invalid ID format')
+export const skillIdParamValidator = [
+  param("skillId").isUUID().withMessage("Invalid skill ID format"),
 ];

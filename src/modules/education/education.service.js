@@ -1,49 +1,80 @@
-import { getCollection } from '../../config/database.js';
-import ApiError from '../../utils/ApiError.js';
-import { pickFields, toApiDocument, toObjectId } from '../../utils/mongoDocument.js';
+import { Education } from "../../database/models/index.js";
+import ApiError from "../../utils/ApiError.js";
 
-class EducationService {
-  async create(userId, data) {
-    const document = {
-      ...pickFields(data, ['school', 'degree', 'fieldOfStudy', 'startDate', 'endDate']),
-      userId
-    };
-    const result = await getCollection('education').insertOne(document);
-    return toApiDocument({ ...document, _id: result.insertedId });
-  }
-
-  async getAll(userId) {
-    const documents = await getCollection('education').find({ userId }).toArray();
-    return documents.map(toApiDocument);
-  }
-
-  async getById(userId, id) {
-    const education = await getCollection('education').findOne({ _id: toObjectId(id), userId });
-    if (!education) {
-      throw new ApiError(404, 'NOT_FOUND', 'Education record not found');
-    }
-    return toApiDocument(education);
-  }
-
-  async update(userId, id, data) {
-    const education = await getCollection('education').findOneAndUpdate(
-      { _id: toObjectId(id), userId },
-      { $set: pickFields(data, ['school', 'degree', 'fieldOfStudy', 'startDate', 'endDate']) },
-      { returnDocument: 'after', includeResultMetadata: false }
-    );
-    if (!education) {
-      throw new ApiError(404, 'NOT_FOUND', 'Education record not found');
-    }
-    return toApiDocument(education);
-  }
-
-  async delete(userId, id) {
-    const result = await getCollection('education').deleteOne({ _id: toObjectId(id), userId });
-    if (result.deletedCount === 0) {
-      throw new ApiError(404, 'NOT_FOUND', 'Education record not found');
-    }
-    return { message: 'Education record deleted successfully' };
-  }
+/**
+ * List all education records for the authenticated user
+ */
+export async function getEducations(userId) {
+  return Education.findAll({
+    where: { userId },
+    order: [["startDate", "DESC NULLS LAST"]],
+  });
 }
 
-export default new EducationService();
+/**
+ * Create a new education record
+ */
+export async function createEducation(userId, data) {
+  if (data.startDate && data.endDate && data.endDate < data.startDate) {
+    throw new ApiError(
+      400,
+      "VALIDATION_ERROR",
+      "End date cannot be earlier than start date",
+    );
+  }
+
+  return Education.create({
+    ...data,
+    userId,
+  });
+}
+
+/**
+ * Update an education record (with ownership check)
+ */
+export async function updateEducation(userId, id, updateData) {
+  const education = await Education.findOne({
+    where: { id, userId },
+  });
+
+  if (!education) {
+    throw new ApiError(
+      404,
+      "NOT_FOUND",
+      "Education record not found or does not belong to you",
+    );
+  }
+
+  const startDate = updateData.startDate || education.startDate;
+  const endDate =
+    updateData.endDate !== undefined ? updateData.endDate : education.endDate;
+
+  if (startDate && endDate && endDate < startDate) {
+    throw new ApiError(
+      400,
+      "VALIDATION_ERROR",
+      "End date cannot be earlier than start date",
+    );
+  }
+
+  return education.update(updateData);
+}
+
+/**
+ * Delete an education record (with ownership check)
+ */
+export async function deleteEducation(userId, id) {
+  const education = await Education.findOne({
+    where: { id, userId },
+  });
+
+  if (!education) {
+    throw new ApiError(
+      404,
+      "NOT_FOUND",
+      "Education record not found or does not belong to you",
+    );
+  }
+
+  await education.destroy();
+}

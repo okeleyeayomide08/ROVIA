@@ -1,30 +1,48 @@
-import experienceService from './experience.service.js';
+import * as experienceService from "./experience.service.js";
 
-class ExperienceController {
-  async create(req, res) {
-    const data = await experienceService.create(req.user.id, req.body);
-    res.status(201).json(data);
-  }
+export async function getExperiences(req, res) {
+  const experiences = await experienceService.getExperiences(req.user.id);
 
-  async getAll(req, res) {
-    const data = await experienceService.getAll(req.user.id);
-    res.json(data);
-  }
-
-  async getById(req, res) {
-    const data = await experienceService.getById(req.user.id, req.params.id);
-    res.json(data);
-  }
-
-  async update(req, res) {
-    const data = await experienceService.update(req.user.id, req.params.id, req.body);
-    res.json(data);
-  }
-
-  async delete(req, res) {
-    const data = await experienceService.delete(req.user.id, req.params.id);
-    res.json(data);
-  }
+  return res.status(200).json({
+    success: true,
+    data: experiences,
+    message: "Experiences retrieved successfully",
+  });
 }
 
-export default new ExperienceController();
+export async function createExperience(req, res) {
+  const experience = await experienceService.createExperience(
+    req.user.id,
+    req.body,
+  );
+
+  return res.status(201).json({
+    success: true,
+    data: experience,
+    message: "Experience created successfully",
+  });
+}
+
+export async function updateExperience(req, res) {
+  const updated = await experienceService.updateExperience(
+    req.user.id,
+    req.params.id,
+    req.body,
+  );
+
+  return res.status(200).json({
+    success: true,
+    data: updated,
+    message: "Experience updated successfully",
+  });
+}
+
+export async function deleteExperience(req, res) {
+  await experienceService.deleteExperience(req.user.id, req.params.id);
+
+  return res.status(200).json({
+    success: true,
+    data: null,
+    message: "Experience deleted successfully",
+  });
+}

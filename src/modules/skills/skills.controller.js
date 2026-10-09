@@ -1,30 +1,55 @@
-import skillsService from './skills.service.js';
+import * as skillsService from "./skills.service.js";
 
-class SkillsController {
-  async create(req, res) {
-    const data = await skillsService.create(req.user.id, req.body);
-    res.status(201).json(data);
-  }
+export async function getAllSkills(req, res) {
+  const skills = await skillsService.getAllSkills(req.query.query);
 
-  async getAll(req, res) {
-    const data = await skillsService.getAll(req.user.id);
-    res.json(data);
-  }
-
-  async getById(req, res) {
-    const data = await skillsService.getById(req.user.id, req.params.id);
-    res.json(data);
-  }
-
-  async update(req, res) {
-    const data = await skillsService.update(req.user.id, req.params.id, req.body);
-    res.json(data);
-  }
-
-  async delete(req, res) {
-    const data = await skillsService.delete(req.user.id, req.params.id);
-    res.json(data);
-  }
+  return res.status(200).json({
+    success: true,
+    data: skills,
+    message: "Skills catalog retrieved successfully",
+  });
 }
 
-export default new SkillsController();
+export async function getUserSkills(req, res) {
+  const skills = await skillsService.getUserSkills(req.user.id);
+
+  return res.status(200).json({
+    success: true,
+    data: skills,
+    message: "User skills retrieved successfully",
+  });
+}
+
+export async function addUserSkill(req, res) {
+  const skill = await skillsService.addUserSkill(req.user.id, req.body);
+
+  return res.status(201).json({
+    success: true,
+    data: skill,
+    message: "Skill added successfully",
+  });
+}
+
+export async function updateUserSkill(req, res) {
+  const updated = await skillsService.updateUserSkill(
+    req.user.id,
+    req.params.skillId,
+    req.body,
+  );
+
+  return res.status(200).json({
+    success: true,
+    data: updated,
+    message: "Skill updated successfully",
+  });
+}
+
+export async function removeUserSkill(req, res) {
+  await skillsService.removeUserSkill(req.user.id, req.params.skillId);
+
+  return res.status(200).json({
+    success: true,
+    data: null,
+    message: "Skill removed successfully",
+  });
+}

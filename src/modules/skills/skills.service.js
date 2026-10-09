@@ -1,49 +1,157 @@
-import { getCollection } from '../../config/database.js';
-import ApiError from '../../utils/ApiError.js';
-import { pickFields, toApiDocument, toObjectId } from '../../utils/mongoDocument.js';
+import {
+  sequelize,
+  Skill,
+  User,
+  UserSkill,
+} from "../../database/models/index.js";
+import ApiError from "../../utils/ApiError.js";
 
-class SkillsService {
-  async create(userId, data) {
-    const document = {
-      ...pickFields(data, ['name', 'proficiencyLevel']),
-      userId
+/**
+ * Get all available skills from the master catalog
+ */
+export async function getAllSkills(searchQuery) {
+  const where = {};
+
+  if (searchQuery) {
+    const { Op } = await import("sequelize");
+    where.name = {
+      [Op.iLike]: `%${searchQuery}%`,
     };
-    const result = await getCollection('skills').insertOne(document);
-    return toApiDocument({ ...document, _id: result.insertedId });
   }
 
-  async getAll(userId) {
-    const documents = await getCollection('skills').find({ userId }).toArray();
-    return documents.map(toApiDocument);
-  }
-
-  async getById(userId, id) {
-    const skill = await getCollection('skills').findOne({ _id: toObjectId(id), userId });
-    if (!skill) {
-      throw new ApiError(404, 'NOT_FOUND', 'Skill not found');
-    }
-    return toApiDocument(skill);
-  }
-
-  async update(userId, id, data) {
-    const skill = await getCollection('skills').findOneAndUpdate(
-      { _id: toObjectId(id), userId },
-      { $set: pickFields(data, ['name', 'proficiencyLevel']) },
-      { returnDocument: 'after', includeResultMetadata: false }
-    );
-    if (!skill) {
-      throw new ApiError(404, 'NOT_FOUND', 'Skill not found');
-    }
-    return toApiDocument(skill);
-  }
-
-  async delete(userId, id) {
-    const result = await getCollection('skills').deleteOne({ _id: toObjectId(id), userId });
-    if (result.deletedCount === 0) {
-      throw new ApiError(404, 'NOT_FOUND', 'Skill not found');
-    }
-    return { message: 'Skill deleted successfully' };
-  }
+  return Skill.findAll({
+    where,
+    order: [["name", "ASC"]],
+  });
 }
 
-export default new SkillsService();
+/**
+ * Get skills for the authenticated user (through join table)
+ */
+export async function getUserSkills(userId) {
+  const user = await User.findByPk(userId, {
+    include: [
+      {
+        model: Skill,
+        as: "skills",
+        through: {
+          attributes: ["proficiency", "evidence"],
+        },
+      },
+    ],
+  });
+
+  return user?.skills || [];
+}
+
+/**
+ * Add a skill to user profile (creates master skill if it doesn't exist)
+ */
+export async function addUserSkill(userId, data) {
+  const trimmedName = data.name.trim();
+
+  return sequelize.transaction(async (t) => {
+    // Find or create the skill in the master catalog
+    const [skill] = await Skill.findOrCreate({
+      where: { name: trimmedName },
+      defaults: {
+        name: trimmedName,
+        category: data.category || null,
+      },
+      transaction: t,
+    });
+
+    // Check if user already has this skill
+    const existing = await UserSkill.findOne({
+      where: { userId, skillId: skill.id },
+      transaction: t,
+    });
+
+    if (existing) {
+      throw new ApiError(409, "CONFLICT", "You have already added this skill");
+    }
+
+    // Create the join table entry with proficiency and evidence
+    await UserSkill.create(
+      {
+        userId,
+        skillId: skill.id,
+        proficiency: data.proficiency || "BEGINNER",
+        evidence: data.evidence || null,
+      },
+      { transaction: t },
+    );
+
+    // Return the skill with join table data
+    const user = await User.findByPk(userId, {
+      include: [
+        {
+          model: Skill,
+          as: "skills",
+          where: { id: skill.id },
+          through: { attributes: ["proficiency", "evidence"] },
+        },
+      ],
+      transaction: t,
+    });
+
+    return user?.skills?.[0] || skill;
+  });
+}
+
+/**
+ * Update proficiency/evidence for a user's skill
+ */
+export async function updateUserSkill(userId, skillId, updateData) {
+  const userSkill = await UserSkill.findOne({
+    where: { userId, skillId },
+  });
+
+  if (!userSkill) {
+    throw new ApiError(
+      404,
+      "NOT_FOUND",
+      "Skill not associated with your profile",
+    );
+  }
+
+  const allowedFields = ["proficiency", "evidence"];
+  for (const field of allowedFields) {
+    if (updateData[field] !== undefined) {
+      userSkill[field] = updateData[field];
+    }
+  }
+
+  await userSkill.save();
+
+  // Return updated skill with join data
+  const user = await User.findByPk(userId, {
+    include: [
+      {
+        model: Skill,
+        as: "skills",
+        where: { id: skillId },
+        through: { attributes: ["proficiency", "evidence"] },
+      },
+    ],
+  });
+
+  return user?.skills?.[0] || null;
+}
+
+/**
+ * Remove a skill from user profile
+ */
+export async function removeUserSkill(userId, skillId) {
+  const deletedCount = await UserSkill.destroy({
+    where: { userId, skillId },
+  });
+
+  if (!deletedCount) {
+    throw new ApiError(
+      404,
+      "NOT_FOUND",
+      "Skill not associated with your profile",
+    );
+  }
+}
