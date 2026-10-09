@@ -10,6 +10,22 @@ const User = sequelize.define(
       primaryKey: true,
       allowNull: false,
     },
+    firstName: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      field: "first_name",
+      set(value) {
+        this.setDataValue("firstName", value ? value.trim() : null);
+      },
+    },
+    lastName: {
+      type: DataTypes.STRING(100),
+      allowNull: false,
+      field: "last_name",
+      set(value) {
+        this.setDataValue("lastName", value ? value.trim() : null);
+      },
+    },
     email: {
       type: DataTypes.STRING,
       allowNull: false,

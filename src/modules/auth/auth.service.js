@@ -17,7 +17,7 @@ import ApiError from "../../utils/ApiError.js";
 import env from "../../config/env.js";
 import crypto from "node:crypto";
 
-export async function register({ email, password }) {
+export async function register({ email, password, firstName, lastName }) {
   const existingUser = await User.findOne({ where: { email } });
   if (existingUser) {
     throw new ApiError(
@@ -32,6 +32,8 @@ export async function register({ email, password }) {
   const result = await sequelize.transaction(async (t) => {
     const user = await User.create(
       {
+        firstName,
+        lastName,
         email,
         passwordHash,
       },

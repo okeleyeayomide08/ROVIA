@@ -104,6 +104,8 @@ export async function getProfileByUserId(userId) {
         as: "user",
         attributes: [
           "id",
+          "firstName",
+          "lastName",
           "email",
           "accountStatus",
           "emailVerified",

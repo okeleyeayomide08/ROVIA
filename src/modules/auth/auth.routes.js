@@ -43,9 +43,17 @@ const authLimiter = rateLimit({
  *           schema:
  *             type: object
  *             required:
+ *               - firstName
+ *               - lastName
  *               - email
  *               - password
  *             properties:
+ *               firstName:
+ *                 type: string
+ *                 example: Ayomide
+ *               lastName:
+ *                 type: string
+ *                 example: Okeleye
  *               email:
  *                 type: string
  *                 format: email
