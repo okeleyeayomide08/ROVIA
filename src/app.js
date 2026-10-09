@@ -27,9 +27,23 @@ app.use(
   }),
 );
 
-// 3. Request tracking + logging
+// 3. Request ID + Logging with PII Header Sanitization
 app.use(requestId);
-app.use(pinoHttp({ logger }));
+app.use(
+  pinoHttp({
+    logger,
+    // Custom serializers to prevent header/body leaks
+    serializers: {
+      req(req) {
+        req.headers.authorization = req.headers.authorization
+          ? "[REDACTED]"
+          : undefined;
+        req.headers.cookie = req.headers.cookie ? "[REDACTED]" : undefined;
+        return req;
+      },
+    },
+  }),
+);
 
 // 4. Body parsing
 app.use(express.json({ limit: "1mb" }));
