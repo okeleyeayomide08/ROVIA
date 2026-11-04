@@ -88,6 +88,55 @@ export async function listOpportunities(query) {
   };
 }
 
+// ─── List Saved Opportunities ─────────────────────────────────────
+// Returns the signed-in user's saved opportunities, most recently saved first.
+// Expired opportunities are included so users can still see what they saved.
+export async function listSavedOpportunities(userId, query) {
+  const page = parseInt(query.page || "1", 10);
+  const limit = parseInt(query.limit || "20", 10);
+  const offset = (page - 1) * limit;
+
+  const { count, rows } = await SavedOpportunity.findAndCountAll({
+    where: { userId },
+    include: [
+      {
+        model: Opportunity,
+        as: "opportunity",
+        required: true,
+        attributes: [
+          "id",
+          "title",
+          "organisation",
+          "type",
+          "location",
+          "country",
+          "workMode",
+          "deadline",
+          "trustLabel",
+          "status",
+          "createdAt",
+        ],
+      },
+    ],
+    order: [["savedAt", "DESC"]],
+    limit,
+    offset,
+  });
+
+  return {
+    savedOpportunities: rows.map((row) => ({
+      savedAt: row.savedAt,
+      opportunity: row.opportunity,
+    })),
+    pagination: {
+      totalItems: count,
+      totalPages: Math.ceil(count / limit),
+      currentPage: page,
+      limit,
+    },
+  };
+}
+
 // ─── Get Single Opportunity (D2) ──────────────────────────────────
 export async function getOpportunityById(opportunityId, userId) {
   const opportunity = await Opportunity.findByPk(opportunityId, {

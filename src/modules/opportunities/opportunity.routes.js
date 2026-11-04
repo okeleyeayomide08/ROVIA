@@ -4,6 +4,7 @@ import {
   listOpportunitiesValidator,
   opportunityIdParamValidator,
   bringOpportunityValidator,
+  savedOpportunitiesValidator,
 } from "./opportunity.validator.js";
 import authenticate from "../../middleware/authenticate.js";
 import validate from "../../middleware/validate.js";
@@ -55,6 +56,36 @@ router.get(
   listOpportunitiesValidator,
   validate,
   asyncHandler(opportunityController.listOpportunities),
+);
+
+/**
+ * @swagger
+ * /opportunities/saved:
+ *   get:
+ *     summary: List the signed-in user's saved opportunities
+ *     description: Most recently saved first. Expired opportunities are included.
+ *     tags: [Opportunities]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema: { type: integer, default: 1, minimum: 1 }
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer, default: 20, minimum: 1, maximum: 50 }
+ *     responses:
+ *       200:
+ *         description: Paginated list of saved opportunities with the save time
+ *       401:
+ *         description: Unauthorized
+ */
+router.get(
+  "/saved",
+  authenticate,
+  savedOpportunitiesValidator,
+  validate,
+  asyncHandler(opportunityController.listSavedOpportunities),
 );
 
 /**
