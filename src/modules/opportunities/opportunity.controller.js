@@ -10,6 +10,19 @@ export async function listOpportunities(req, res) {
   });
 }
 
+export async function listSavedOpportunities(req, res) {
+  const result = await opportunityService.listSavedOpportunities(
+    req.user.id,
+    req.query,
+  );
+
+  return res.status(200).json({
+    success: true,
+    data: result,
+    message: "Saved opportunities retrieved successfully",
+  });
+}
+
 export async function getOpportunity(req, res) {
   const result = await opportunityService.getOpportunityById(
     req.params.id,
