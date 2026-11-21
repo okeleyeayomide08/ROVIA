@@ -25,8 +25,11 @@ export async function register(req, res) {
       user: result.user,
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
+      verificationEmailSent: result.verificationEmailSent,
     },
-    message: "User registered successfully",
+    message: result.verificationEmailSent
+      ? "User registered successfully"
+      : "Account created, but the verification email could not be sent. Please use 'resend verification email' to try again.",
   });
 }
 

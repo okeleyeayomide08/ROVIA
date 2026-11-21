@@ -73,18 +73,23 @@ export async function updateMe(userId, { firstName, lastName, email }) {
     await user.save({ transaction: t });
   });
 
+  let verificationEmailSent = null;
   if (emailChanged) {
     const verificationUrl = `${env.frontendUrl}/verify-email?token=${rawVerificationToken}`;
-    void sendVerificationEmail({
-      to: user.email,
-      firstName: user.firstName,
-      verificationUrl,
-    }).catch((error) => {
+    verificationEmailSent = true;
+    try {
+      await sendVerificationEmail({
+        to: user.email,
+        firstName: user.firstName,
+        verificationUrl,
+      });
+    } catch (error) {
+      verificationEmailSent = false;
       logger.error(
-        { err: error?.message || error, email: user.email },
+        { err: error.message, userId: user.id },
         "Verification email could not be sent after profile update",
       );
-    });
+    }
   }
 
   return {
@@ -99,6 +104,7 @@ export async function updateMe(userId, { firstName, lastName, email }) {
       createdAt: user.createdAt,
     },
     emailVerificationPending: emailChanged,
+    verificationEmailSent,
   };
 }
 
