@@ -73,19 +73,23 @@ export async function register({ email, password, firstName, lastName }) {
     return { user, profile };
   });
 
-  // Send verification email asynchronously without blocking registration. Log and swallow
-  // failures here so the response remains explicit and the promise is handled.
+  // The account is already created. If the email fails, registration still succeeds,
+  // and the response tells the app to offer "resend verification email".
   const verificationUrl = `${env.frontendUrl}/verify-email?token=${rawVerificationToken}`;
-  void sendVerificationEmail({
-    to: result.user.email,
-    firstName: result.user.firstName,
-    verificationUrl,
-  }).catch((error) => {
+  let verificationEmailSent = true;
+  try {
+    await sendVerificationEmail({
+      to: result.user.email,
+      firstName: result.user.firstName,
+      verificationUrl,
+    });
+  } catch (error) {
+    verificationEmailSent = false;
     logger.error(
-      { err: error?.message || error, email: result.user.email },
+      { err: error.message, userId: result.user.id },
       "Verification email could not be sent during registration",
     );
-  });
+  }
 
   // Generate session tokens
   const payload = { id: result.user.id, email: result.user.email };
@@ -108,6 +112,7 @@ export async function register({ email, password, firstName, lastName }) {
     user: userJson,
     accessToken,
     refreshToken: rawRefreshToken,
+    verificationEmailSent,
   };
 }
 
@@ -201,7 +206,15 @@ export async function resendVerification(email) {
       verificationUrl,
     });
   } catch (error) {
-    logger.error({ err: error?.message || error }, "Verification email failed");
+    logger.error(
+      { err: error.message, userId: user.id },
+      "Resend verification email failed",
+    );
+    throw new ApiError(
+      502,
+      "EMAIL_DELIVERY_FAILED",
+      "We could not send the verification email right now. Please try again in a few minutes.",
+    );
   }
 }
 

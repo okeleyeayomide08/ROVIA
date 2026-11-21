@@ -1,3 +1,4 @@
+import { jest } from "@jest/globals";
 import request from "supertest";
 import app from "../../src/app.js";
 import {
@@ -219,6 +220,13 @@ describe("POST /api/v1/auth/verify-email", () => {
 // ==============================
 describe("POST /api/v1/auth/resend-verification", () => {
   it("should return 200 for existing unverified user", async () => {
+    // Mock the email service so the test does not send real email.
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({}),
+    });
+
     await request(app).post("/api/v1/auth/register").send({
       firstName: "Resend",
       lastName: "Test",
@@ -232,6 +240,28 @@ describe("POST /api/v1/auth/resend-verification", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+  });
+
+  it("should return 502 when the email service fails", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: async () => ({}),
+    });
+
+    await request(app).post("/api/v1/auth/register").send({
+      firstName: "Resend",
+      lastName: "Fail",
+      email: "resend-fail@rovia.app",
+      password: "SecurePass123!",
+    });
+
+    const res = await request(app)
+      .post("/api/v1/auth/resend-verification")
+      .send({ email: "resend-fail@rovia.app" });
+
+    expect(res.status).toBe(502);
+    expect(res.body.error.code).toBe("EMAIL_DELIVERY_FAILED");
   });
 
   it("should return 200 for non-existent email (privacy)", async () => {

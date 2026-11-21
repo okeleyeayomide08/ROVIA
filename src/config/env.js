@@ -30,12 +30,11 @@ export default {
     accessExpiresIn: process.env.JWT_ACCESS_EXPIRES_IN,
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN,
   },
-  smtp: {
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: parseInt(process.env.SMTP_PORT || "465", 10),
-    user: process.env.SMTP_USER || "",
-    pass: process.env.SMTP_PASS || "",
-    from: process.env.EMAIL_FROM || "Rovia <teamrovia@gmail.com>",
+  // Transactional email via Brevo's HTTPS API (works on hosts that block SMTP ports).
+  email: {
+    brevoApiKey: process.env.BREVO_API_KEY || "",
+    // Must be a sender address verified in Brevo, e.g. "Rovia <noreply@yourdomain.com>"
+    from: process.env.EMAIL_FROM || "",
   },
   storage: {
     endpoint: process.env.STORAGE_ENDPOINT || "",
